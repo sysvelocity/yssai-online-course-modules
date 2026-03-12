@@ -1,4 +1,4 @@
-<!-- YSS_STANDALONE_APP_V5 -->
+<!-- YSS_STANDALONE_APP_V6 -->
 <!doctype html>
 <html lang="en">
 <head>
@@ -100,8 +100,9 @@
 
     .brand {
       display: flex;
-      flex-direction: column;
-      align-items: flex-start;
+      flex-direction: row;
+      align-items: flex-end;
+      gap: 18px;
       padding: 6px 0 2px;
     }
 
@@ -109,6 +110,15 @@
       display: block;
       width: min(110px, 100%);
       height: auto;
+      flex: 0 0 auto;
+    }
+
+    .brand-copy {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: flex-end;
+      min-height: 100%;
     }
 
     .messages {
@@ -257,32 +267,43 @@
       display: flex;
       gap: 10px;
       flex: 0 0 auto;
+      align-items: center;
     }
 
     .button {
       appearance: none;
       border: 0;
-      border-radius: 16px;
-      padding: 13px 18px;
-      font: inherit;
-      font-weight: 700;
+      width: 48px;
+      height: 48px;
+      border-radius: 999px;
+      padding: 0;
       cursor: pointer;
-      transition: background 140ms ease, opacity 140ms ease;
+      transition: background 140ms ease, opacity 140ms ease, transform 140ms ease;
       box-shadow: 0 8px 18px rgba(34, 50, 71, 0.08);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .button.send {
-      background: var(--red);
+      background: #111111;
       color: white;
     }
 
     .button.send:hover {
-      background: var(--red-deep);
+      background: #000000;
+      transform: translateY(-1px);
     }
 
     .button.reset {
-      background: var(--navy-soft);
+      background: var(--surface-white);
       color: var(--navy);
+      border: 1px solid rgba(185, 196, 210, 0.95);
+    }
+
+    .button.reset:hover {
+      background: #f3f6f9;
+      transform: translateY(-1px);
     }
 
     .button:disabled {
@@ -314,10 +335,7 @@
 
       .actions {
         width: 100%;
-      }
-
-      .button {
-        flex: 1 1 auto;
+        justify-content: flex-end;
       }
     }
   </style>
@@ -331,8 +349,10 @@
           src="/yss-ai-assist-logo.jpg"
           alt="Your Sales Story with AI Assist"
         />
-        <p class="subtitle">AI Assist | Draft Your Customer Issues Addressed Talking Points</p>
-        <p class="subtitle-copy">Sales friend, now it's time to get to work. Please provide a Bridge Line + your talking points on Customer Issues Addressed &amp; Outcomes Delivered (Video Module 4). You'll receive detailed feedback to help you refine further.</p>
+        <div class="brand-copy">
+          <p class="subtitle">AI Assist | Draft Your Customer Issues Addressed Talking Points</p>
+          <p class="subtitle-copy">Sales friend, now it's time to get to work. Please provide a Bridge Line + your talking points on Customer Issues Addressed &amp; Outcomes Delivered (Video Module 4). You'll receive detailed feedback to help you refine further.</p>
+        </div>
       </div>
     </header>
 
@@ -351,8 +371,19 @@
           placeholder="Paste your bridge line and talking points, or ask for help getting started."
         ></textarea>
         <div class="actions">
-          <button id="resetBtn" class="button reset" type="button">Start Again</button>
-          <button id="sendBtn" class="button send" type="button">Send</button>
+          <button id="resetBtn" class="button reset" type="button" title="Start again" aria-label="Start again">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M7 7V3L2 8L7 13V9C10.866 9 14 12.134 14 16C14 17.201 13.697 18.332 13.163 19.321" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M10.837 4.679C11.215 4.566 11.604 4.5 12 4.5C16.142 4.5 19.5 7.858 19.5 12C19.5 13.615 18.99 15.111 18.123 16.336" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+            </svg>
+          </button>
+          <button id="sendBtn" class="button send" type="button" title="Send" aria-label="Send">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <circle cx="12" cy="12" r="11" fill="currentColor" opacity="0"></circle>
+              <path d="M12 17V7" stroke="white" stroke-width="2.2" stroke-linecap="round"/>
+              <path d="M8.5 10.5L12 7L15.5 10.5" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
         </div>
       </div>
     </section>
