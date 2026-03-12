@@ -1,4 +1,4 @@
-// YSS_VERCEL_CHAT_V3
+// YSS_VERCEL_CHAT_V4
 
 import OpenAI from "openai";
 import { systemPrompt } from "../lib/systemPrompt.js";
@@ -8,6 +8,8 @@ export const config = {
 };
 
 const DEFAULT_MODEL = "gpt-5.2";
+const DEFAULT_TEMPERATURE = 0.8;
+const DEFAULT_PRESENCE_PENALTY = 0.2;
 
 function setCorsHeaders(response) {
   response.setHeader("Access-Control-Allow-Origin", "*");
@@ -63,7 +65,7 @@ export default async function handler(request, response) {
   if (request.method === "GET") {
     response.status(200).json({
       ok: true,
-      version: "YSS_VERCEL_CHAT_V3",
+      version: "YSS_VERCEL_CHAT_V4",
       file_search_enabled: Boolean(process.env.OPENAI_VECTOR_STORE_ID)
     });
     return;
@@ -98,6 +100,8 @@ export default async function handler(request, response) {
       model,
       instructions: systemPrompt,
       input: buildInput(history, message),
+      temperature: DEFAULT_TEMPERATURE,
+      presence_penalty: DEFAULT_PRESENCE_PENALTY,
       ...(vectorStoreId
         ? {
             tools: [
