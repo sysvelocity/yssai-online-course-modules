@@ -1,4 +1,4 @@
-<!-- YSS_STANDALONE_APP_V7 -->
+<!-- YSS_STANDALONE_APP_V8 -->
 <!doctype html>
 <html lang="en">
 <head>
@@ -283,6 +283,7 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
+      position: relative;
     }
 
     .button.send {
@@ -309,6 +310,42 @@
     .button:disabled {
       opacity: 0.55;
       cursor: default;
+    }
+
+    .tooltip {
+      position: absolute;
+      right: 50%;
+      bottom: calc(100% + 10px);
+      transform: translateX(50%) translateY(4px);
+      background: #111111;
+      color: #ffffff;
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1;
+      padding: 8px 10px;
+      border-radius: 10px;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 120ms ease, transform 120ms ease;
+      box-shadow: 0 10px 20px rgba(17, 17, 17, 0.2);
+    }
+
+    .tooltip::after {
+      content: "";
+      position: absolute;
+      top: 100%;
+      right: 50%;
+      transform: translateX(50%);
+      border-width: 6px 5px 0 5px;
+      border-style: solid;
+      border-color: #111111 transparent transparent transparent;
+    }
+
+    .button:hover .tooltip,
+    .button:focus-visible .tooltip {
+      opacity: 1;
+      transform: translateX(50%) translateY(0);
     }
 
     @media (max-width: 700px) {
@@ -371,18 +408,20 @@
           placeholder="Paste your bridge line and talking points, or ask for help getting started."
         ></textarea>
         <div class="actions">
-          <button id="resetBtn" class="button reset" type="button" title="Start again" aria-label="Start again">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M7 7V3L2 8L7 13V9C10.866 9 14 12.134 14 16C14 17.201 13.697 18.332 13.163 19.321" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M10.837 4.679C11.215 4.566 11.604 4.5 12 4.5C16.142 4.5 19.5 7.858 19.5 12C19.5 13.615 18.99 15.111 18.123 16.336" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
-            </svg>
-          </button>
-          <button id="sendBtn" class="button send" type="button" title="Send" aria-label="Send">
+          <button id="sendBtn" class="button send" type="button" aria-label="Send">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <circle cx="12" cy="12" r="11" fill="currentColor" opacity="0"></circle>
               <path d="M12 17V7" stroke="white" stroke-width="2.2" stroke-linecap="round"/>
               <path d="M8.5 10.5L12 7L15.5 10.5" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
+            <span class="tooltip">Send</span>
+          </button>
+          <button id="resetBtn" class="button reset" type="button" aria-label="Start again">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M7 7V3L2 8L7 13V9C10.866 9 14 12.134 14 16C14 17.201 13.697 18.332 13.163 19.321" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M10.837 4.679C11.215 4.566 11.604 4.5 12 4.5C16.142 4.5 19.5 7.858 19.5 12C19.5 13.615 18.99 15.111 18.123 16.336" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+            </svg>
+            <span class="tooltip">Start Again</span>
           </button>
         </div>
       </div>
