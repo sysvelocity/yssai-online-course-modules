@@ -1,12 +1,13 @@
 # project-yss
 
-Standalone Vercel chat app for the Sysvelocity YSS AI coach.
+Standalone Vercel chat app for the Sysvelocity YSS AI Assist.
 
 ## Files
 
 - `index.html`: Streaming chat UI served at `/`
 - `api/chat.js`: Streaming chat endpoint for Wix
 - `lib/systemPrompt.js`: YSS system prompt
+- `scripts/upload-knowledge.mjs`: One-time vector store upload script
 - `vercel.json`: Vercel function settings
 
 ## Environment variables
@@ -15,6 +16,7 @@ Set these in Vercel:
 
 - `OPENAI_API_KEY`
 - `OPENAI_MODEL`, optional, recommended `gpt-5.2`
+- `OPENAI_VECTOR_STORE_ID`, optional, enables knowledge-file retrieval
 
 ## Local development
 
@@ -57,6 +59,22 @@ After deployment:
 
 - `https://your-project.vercel.app/` serves the chat UI
 - `https://your-project.vercel.app/api/chat` serves the streaming endpoint
+
+If `OPENAI_VECTOR_STORE_ID` is set, the chat endpoint also uses OpenAI file search against that vector store.
+
+## Upload the knowledge file
+
+Run this once from the project folder:
+
+```bash
+OPENAI_API_KEY=your_key_here node scripts/upload-knowledge.mjs "/Users/fergalocarroll/Downloads/Draft+Your+Client+Issues+Addressed+Talking+Points.docx"
+```
+
+Copy the printed vector store ID into Vercel as:
+
+```text
+OPENAI_VECTOR_STORE_ID
+```
 
 ## Next step
 

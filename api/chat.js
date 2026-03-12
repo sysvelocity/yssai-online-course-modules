@@ -1,4 +1,4 @@
-// YSS_VERCEL_CHAT_V2
+// YSS_VERCEL_CHAT_V3
 
 import OpenAI from "openai";
 import { systemPrompt } from "../lib/systemPrompt.js";
@@ -63,7 +63,8 @@ export default async function handler(request, response) {
   if (request.method === "GET") {
     response.status(200).json({
       ok: true,
-      version: "YSS_VERCEL_CHAT_V2"
+      version: "YSS_VERCEL_CHAT_V3",
+      file_search_enabled: Boolean(process.env.OPENAI_VECTOR_STORE_ID)
     });
     return;
   }
@@ -75,6 +76,7 @@ export default async function handler(request, response) {
 
   const apiKey = process.env.OPENAI_API_KEY;
   const model = process.env.OPENAI_MODEL || DEFAULT_MODEL;
+  const vectorStoreId = process.env.OPENAI_VECTOR_STORE_ID;
 
   if (!apiKey) {
     response.status(500).json({ error: "Missing OPENAI_API_KEY" });
@@ -95,7 +97,18 @@ export default async function handler(request, response) {
     const stream = await client.responses.stream({
       model,
       instructions: systemPrompt,
-      input: buildInput(history, message)
+      input: buildInput(history, message),
+      ...(vectorStoreId
+        ? {
+            tools: [
+              {
+                type: "file_search",
+                vector_store_ids: [vectorStoreId],
+                max_num_results: 6
+              }
+            ]
+          }
+        : {})
     });
 
     response.writeHead(200, {
