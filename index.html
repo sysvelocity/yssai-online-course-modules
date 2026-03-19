@@ -1,4 +1,4 @@
-<!-- YSS_STANDALONE_APP_V17 -->
+<!-- YSS_STANDALONE_APP_V19 -->
 <!doctype html>
 <html lang="en">
 <head>
@@ -308,6 +308,52 @@
       align-items: center;
     }
 
+    .attachment-row {
+      display: none;
+      margin: 0 0 10px 6px;
+    }
+
+    .attachment-row.visible {
+      display: flex;
+    }
+
+    .attachment-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      max-width: 420px;
+      padding: 8px 10px;
+      border-radius: 999px;
+      background: rgba(199, 31, 55, 0.08);
+      border: 1px solid rgba(199, 31, 55, 0.16);
+      color: var(--navy);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .attachment-name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .attachment-remove {
+      appearance: none;
+      border: 0;
+      background: transparent;
+      color: var(--navy);
+      cursor: pointer;
+      padding: 0;
+      width: 18px;
+      height: 18px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      font-size: 14px;
+      line-height: 1;
+    }
+
     .button {
       appearance: none;
       border: 0;
@@ -455,6 +501,12 @@
 
     <section class="composer-wrap">
       <div id="status" class="status">Ready</div>
+      <div id="attachmentRow" class="attachment-row">
+        <div class="attachment-chip">
+          <span id="attachmentName" class="attachment-name"></span>
+          <button id="removeAttachmentBtn" class="attachment-remove" type="button" aria-label="Remove attachment">×</button>
+        </div>
+      </div>
       <div class="composer">
         <textarea
           id="input"
@@ -471,7 +523,7 @@
           </button>
           <button id="attachBtn" class="button reset" type="button" aria-label="Add attachment">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M15 7.5V16C15 17.657 13.657 19 12 19C10.343 19 9 17.657 9 16V8.75C9 7.507 10.007 6.5 11.25 6.5C12.493 6.5 13.5 7.507 13.5 8.75V15.75C13.5 16.44 12.94 17 12.25 17C11.56 17 11 16.44 11 15.75V9.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M15 7V16.25C15 18.04 13.54 19.5 11.75 19.5C9.96 19.5 8.5 18.04 8.5 16.25V8.5C8.5 7.12 9.62 6 11 6C12.38 6 13.5 7.12 13.5 8.5V15.25C13.5 16.08 12.83 16.75 12 16.75C11.17 16.75 10.5 16.08 10.5 15.25V9.25" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
             <span class="tooltip">Add Attachment</span>
           </button>
@@ -487,13 +539,23 @@
   <script>
     const messagesEl = document.getElementById("messages");
     const inputEl = document.getElementById("input");
+    const attachmentRow = document.getElementById("attachmentRow");
+    const attachmentNameEl = document.getElementById("attachmentName");
+    const removeAttachmentBtn = document.getElementById("removeAttachmentBtn");
     const attachBtn = document.getElementById("attachBtn");
     const sendBtn = document.getElementById("sendBtn");
     const statusEl = document.getElementById("status");
+    const fileInput = document.createElement("input");
+
+    fileInput.type = "file";
+    fileInput.accept = ".txt,.pdf,.docx";
+    fileInput.style.display = "none";
+    document.body.appendChild(fileInput);
 
     let state = {
       history: [],
-      busy: false
+      busy: false,
+      attachment: null
     };
 
     function escapeHtml(value) {
@@ -633,7 +695,141 @@
       sendBtn.classList.toggle("ready", hasContent && !state.busy);
     }
 
-    async function streamChat(message, history) {
+    function renderAttachment() {
+      if (!state.attachment) {
+        attachmentRow.classList.remove("visible");
+        attachmentNameEl.textContent = "";
+        return;
+      }
+
+      attachmentNameEl.textContent = state.attachment.fileName;
+      attachmentRow.classList.add("visible");
+    }
+
+    async function cleanupAttachment() {
+      if (!state.attachment) {
+        return;
+      }
+
+      const payload = {
+        vectorStoreId: state.attachment.vectorStoreId,
+        fileId: state.attachment.fileId
+      };
+
+      state.attachment = null;
+      renderAttachment();
+
+      try {
+        await fetch("/api/delete-attachment", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(payload),
+          keepalive: true
+        });
+      } catch (error) {
+      }
+    }
+
+    async function uploadAttachment(file) {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formData
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result?.error || "Upload failed");
+      }
+
+      state.attachment = {
+        fileName: result.fileName,
+        fileId: result.fileId,
+        vectorStoreId: result.vectorStoreId
+      };
+
+      renderAttachment();
+    }
+
+    attachBtn.addEventListener("click", () => {
+      if (state.busy) {
+        return;
+      }
+      fileInput.click();
+    });
+
+    fileInput.addEventListener("change", async () => {
+      const file = fileInput.files && fileInput.files[0];
+      fileInput.value = "";
+
+      if (!file) {
+        return;
+      }
+
+      if (state.attachment) {
+        await cleanupAttachment();
+      }
+
+      setBusy(true, "Uploading attachment...");
+
+      try {
+        await uploadAttachment(file);
+        setBusy(false, `Attached: ${state.attachment.fileName}`);
+      } catch (error) {
+        setBusy(false, error && error.message ? error.message : "Upload failed");
+      }
+    });
+
+    removeAttachmentBtn.addEventListener("click", async () => {
+      if (state.busy) {
+        return;
+      }
+
+      await cleanupAttachment();
+      setBusy(false, "Attachment removed.");
+    });
+
+    sendBtn.addEventListener("click", async () => {
+      if (state.busy) {
+        return;
+      }
+
+      const message = inputEl.value.trim();
+
+      if (!message) {
+        statusEl.textContent = "Enter a bridge line and talking points, or ask for help getting started.";
+        return;
+      }
+
+      const historyForRequest = [...state.history];
+      state.history.push({ role: "user", content: message });
+      render();
+      inputEl.value = "";
+      resetInputSize();
+      setBusy(true, "Streaming response...");
+
+      try {
+        await streamChat(message, historyForRequest, state.attachment);
+        setBusy(false, "Done");
+      } catch (error) {
+        const messageText =
+          error && error.message ? error.message : "Request failed";
+
+        state.history.push({
+          role: "assistant",
+          content: messageText
+        });
+        render();
+        setBusy(false, messageText);
+      }
+    });
+
+    async function streamChat(message, history, attachment) {
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: {
@@ -642,7 +838,8 @@
         },
         body: JSON.stringify({
           message,
-          history
+          history,
+          attachmentVectorStoreId: attachment?.vectorStoreId || ""
         })
       });
 
@@ -723,49 +920,6 @@
       }
     }
 
-    attachBtn.addEventListener("click", () => {
-      if (state.busy) {
-        return;
-      }
-
-      setBusy(false, "Attachment support is coming soon.");
-    });
-
-    sendBtn.addEventListener("click", async () => {
-      if (state.busy) {
-        return;
-      }
-
-      const message = inputEl.value.trim();
-
-      if (!message) {
-        statusEl.textContent = "Enter a bridge line and talking points, or ask for help getting started.";
-        return;
-      }
-
-      const historyForRequest = [...state.history];
-      state.history.push({ role: "user", content: message });
-      render();
-      inputEl.value = "";
-      resetInputSize();
-      setBusy(true, "Streaming response...");
-
-      try {
-        await streamChat(message, historyForRequest);
-        setBusy(false, "Done");
-      } catch (error) {
-        const messageText =
-          error && error.message ? error.message : "Request failed";
-
-        state.history.push({
-          role: "assistant",
-          content: messageText
-        });
-        render();
-        setBusy(false, messageText);
-      }
-    });
-
     inputEl.addEventListener("keydown", (event) => {
       if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
         sendBtn.click();
@@ -779,6 +933,23 @@
 
     resetInputSize();
     updateSendButtonState();
+    window.addEventListener("pagehide", () => {
+      if (!state.attachment) {
+        return;
+      }
+
+      const payload = JSON.stringify({
+        vectorStoreId: state.attachment.vectorStoreId,
+        fileId: state.attachment.fileId
+      });
+
+      navigator.sendBeacon(
+        "/api/delete-attachment",
+        new Blob([payload], { type: "application/json" })
+      );
+    });
+
+    renderAttachment();
     render();
   </script>
 </body>

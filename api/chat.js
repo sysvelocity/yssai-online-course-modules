@@ -1,4 +1,4 @@
-// YSS_VERCEL_CHAT_V5
+// YSS_VERCEL_CHAT_V6
 
 import OpenAI from "openai";
 import { systemPrompt } from "../lib/systemPrompt.js";
@@ -90,9 +90,10 @@ export default async function handler(request, response) {
     response.status(200).json({
       ok: true,
       app_version: APP_VERSION,
-      version: "YSS_VERCEL_CHAT_V5",
+      version: "YSS_VERCEL_CHAT_V6",
       moderation_enabled: true,
-      file_search_enabled: Boolean(process.env.OPENAI_VECTOR_STORE_ID)
+      file_search_enabled: Boolean(process.env.OPENAI_VECTOR_STORE_ID),
+      attachment_support: true
     });
     return;
   }
@@ -105,6 +106,10 @@ export default async function handler(request, response) {
   const apiKey = process.env.OPENAI_API_KEY;
   const model = process.env.OPENAI_MODEL || DEFAULT_MODEL;
   const vectorStoreId = process.env.OPENAI_VECTOR_STORE_ID;
+  const attachmentVectorStoreId =
+    typeof request.body?.attachmentVectorStoreId === "string"
+      ? request.body.attachmentVectorStoreId.trim()
+      : "";
 
   if (!apiKey) {
     response.status(500).json({ error: "Missing OPENAI_API_KEY" });
@@ -132,18 +137,20 @@ export default async function handler(request, response) {
       return;
     }
 
+    const vectorStoreIds = [vectorStoreId, attachmentVectorStoreId].filter(Boolean);
+
     const stream = await client.responses.stream({
       model,
       instructions: systemPrompt,
       input: buildInput(history, message),
       temperature: DEFAULT_TEMPERATURE,
       presence_penalty: DEFAULT_PRESENCE_PENALTY,
-      ...(vectorStoreId
+      ...(vectorStoreIds.length
         ? {
             tools: [
               {
                 type: "file_search",
-                vector_store_ids: [vectorStoreId],
+                vector_store_ids: vectorStoreIds,
                 max_num_results: 6
               }
             ]
