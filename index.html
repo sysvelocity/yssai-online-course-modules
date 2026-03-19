@@ -1,4 +1,4 @@
-<!-- YSS_STANDALONE_APP_V16 -->
+<!-- YSS_STANDALONE_APP_V17 -->
 <!doctype html>
 <html lang="en">
 <head>
@@ -329,9 +329,17 @@
       color: white;
     }
 
+    .button.send.ready {
+      background: var(--red);
+    }
+
     .button.send:hover {
       background: #000000;
       transform: translateY(-1px);
+    }
+
+    .button.send.ready:hover {
+      background: var(--red-deep);
     }
 
     .button.reset {
@@ -572,6 +580,7 @@
       sendBtn.disabled = isBusy;
       attachBtn.disabled = isBusy;
       statusEl.textContent = statusText;
+      updateSendButtonState();
     }
 
     function scrollToBottom() {
@@ -607,6 +616,21 @@
       }).join("");
 
       scrollToBottom();
+    }
+
+    function autoResizeInput() {
+      inputEl.style.height = "auto";
+      const nextHeight = Math.min(Math.max(inputEl.scrollHeight, 96), 220);
+      inputEl.style.height = `${nextHeight}px`;
+    }
+
+    function resetInputSize() {
+      inputEl.style.height = "96px";
+    }
+
+    function updateSendButtonState() {
+      const hasContent = inputEl.value.trim().length > 0;
+      sendBtn.classList.toggle("ready", hasContent && !state.busy);
     }
 
     async function streamChat(message, history) {
@@ -723,6 +747,7 @@
       state.history.push({ role: "user", content: message });
       render();
       inputEl.value = "";
+      resetInputSize();
       setBusy(true, "Streaming response...");
 
       try {
@@ -747,6 +772,13 @@
       }
     });
 
+    inputEl.addEventListener("input", () => {
+      autoResizeInput();
+      updateSendButtonState();
+    });
+
+    resetInputSize();
+    updateSendButtonState();
     render();
   </script>
 </body>
