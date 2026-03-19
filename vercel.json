@@ -3,5 +3,15 @@
     "api/chat.js": {
       "maxDuration": 60
     }
-  }
+  },
+  "rewrites": [
+    {
+      "source": "/modules/:slug",
+      "destination": "/"
+    },
+    {
+      "source": "/modules/:slug/:rest*",
+      "destination": "/"
+    }
+  ]
 }

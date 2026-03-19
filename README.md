@@ -4,11 +4,16 @@ Standalone Vercel chat app for the Sysvelocity YSS AI Assist.
 
 Current release: `v1.0.0`
 
+This project is now structured as a shared multi-module app. Module 4 is the current live default, and future modules should be added as configuration entries rather than separate cloned apps.
+
 ## Files
 
 - `index.html`: Streaming chat UI served at `/`
-- `api/chat.js`: Streaming chat endpoint for Wix
-- `lib/systemPrompt.js`: YSS system prompt
+- `api/chat.js`: Streaming chat endpoint
+- `api/module.js`: Public module metadata endpoint
+- `lib/modules.js`: Shared module registry and module metadata
+- `lib/prompts/module4.js`: Module 4 prompt definition
+- `lib/systemPrompt.js`: Backward-compatible re-export of the Module 4 prompt
 - `scripts/upload-knowledge.mjs`: One-time vector store upload script
 - `vercel.json`: Vercel function settings
 
@@ -18,7 +23,18 @@ Set these in Vercel:
 
 - `OPENAI_API_KEY`
 - `OPENAI_MODEL`, optional, recommended `gpt-5.2`
-- `OPENAI_VECTOR_STORE_ID`, optional, enables knowledge-file retrieval
+- `APP_ACCESS_CODE`, optional, enables access-code protection
+
+Knowledge/vector store configuration:
+
+- `MODULE_4_VECTOR_STORE_ID`, recommended for Module 4
+- `OPENAI_VECTOR_STORE_ID`, still supported as a fallback for Module 4
+
+Future modules should follow the same pattern:
+
+- `MODULE_1_VECTOR_STORE_ID`
+- `MODULE_2_VECTOR_STORE_ID`
+- and so on
 
 ## Local development
 
@@ -27,10 +43,11 @@ npm install
 npx vercel dev
 ```
 
-The local endpoint will be:
+The local endpoints will be:
 
 ```text
 http://localhost:3000/api/chat
+http://localhost:3000/api/module
 ```
 
 ## Request format
@@ -60,9 +77,24 @@ Server-Sent Events stream:
 After deployment:
 
 - `https://your-project.vercel.app/` serves the chat UI
+- `https://your-project.vercel.app/modules/module-4` serves Module 4 explicitly
 - `https://your-project.vercel.app/api/chat` serves the streaming endpoint
+- `https://your-project.vercel.app/api/module?module=module-4` returns Module 4 UI metadata
 
-If `OPENAI_VECTOR_STORE_ID` is set, the chat endpoint also uses OpenAI file search against that vector store.
+If `MODULE_4_VECTOR_STORE_ID` is set, the chat endpoint uses that knowledge store for Module 4. If not, it falls back to `OPENAI_VECTOR_STORE_ID` for backward compatibility.
+
+## Module pattern
+
+Each module should be defined in `lib/modules.js` with:
+
+- slug
+- module number / title / intro copy
+- empty state text
+- input placeholder
+- prompt
+- vector store env var name
+
+That means new modules can be added without cloning the whole app. The shared UI, streaming backend, moderation, scope enforcement, access control, and attachment flow all stay in one codebase.
 
 ## Upload the knowledge file
 

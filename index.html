@@ -679,7 +679,21 @@
 
     function getRequestedModuleSlug() {
       const params = new URLSearchParams(window.location.search);
-      return params.get("module") || "module-4";
+      const queryModule = params.get("module");
+
+      if (queryModule) {
+        return queryModule;
+      }
+
+      const pathParts = window.location.pathname
+        .split("/")
+        .filter(Boolean);
+
+      if (pathParts[0] === "modules" && pathParts[1]) {
+        return pathParts[1];
+      }
+
+      return "module-4";
     }
 
     function applyModuleConfig(moduleConfig) {

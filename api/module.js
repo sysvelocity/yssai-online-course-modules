@@ -30,6 +30,7 @@ export default async function handler(request, response) {
   response.status(200).json({
     ok: true,
     version: "YSS_VERCEL_MODULE_API_V1",
+    default_module: getDefaultModuleSlug(),
     module: getPublicModuleConfig(slug)
   });
 }
