@@ -24,6 +24,7 @@ const MODERATION_MODEL = "omni-moderation-latest";
 const SCOPE_MODEL = "gpt-4.1-mini";
 const DEFAULT_TEMPERATURE = 0.8;
 const DEFAULT_PRESENCE_PENALTY = 0.2;
+const FILE_SEARCH_MAX_RESULTS = 4;
 
 function setCorsHeaders(response) {
   response.setHeader("Access-Control-Allow-Origin", "*");
@@ -94,6 +95,44 @@ function getRecentHistorySummary(history = []) {
     .slice(-6)
     .map((item, index) => `${index + 1}. ${item.role}: ${item.content}`)
     .join("\n");
+}
+
+function isContinuationLikeMessage(message = "") {
+  const trimmed = String(message || "").trim().toLowerCase();
+
+  if (!trimmed) {
+    return false;
+  }
+
+  const exactMatches = new Set([
+    "continue",
+    "go on",
+    "keep going",
+    "carry on",
+    "more",
+    "next",
+    "finish",
+    "resume"
+  ]);
+
+  if (exactMatches.has(trimmed)) {
+    return true;
+  }
+
+  const partialMatches = [
+    "continue your response",
+    "continue the response",
+    "you stalled",
+    "you stopped",
+    "pick up where you left off",
+    "give me the refined",
+    "give me the sharpened",
+    "show the rest",
+    "finish your response",
+    "resume from"
+  ];
+
+  return partialMatches.some((phrase) => trimmed.includes(phrase));
 }
 
 async function checkScope(client, moduleDef, message, history, hasAttachment) {
@@ -188,7 +227,19 @@ export default async function handler(request, response) {
   const client = new OpenAI({ apiKey });
 
   try {
-    const moderation = await moderateInput(client, message);
+    const continuationLike = isContinuationLikeMessage(message);
+    const [moderation, inScope] = await Promise.all([
+      moderateInput(client, message),
+      continuationLike
+        ? Promise.resolve(true)
+        : checkScope(
+            client,
+            moduleDef,
+            message,
+            history,
+            Boolean(attachmentVectorStoreId)
+          )
+    ]);
 
     if (moderation.flagged) {
       response.status(400).json({
@@ -197,14 +248,6 @@ export default async function handler(request, response) {
       });
       return;
     }
-
-    const inScope = await checkScope(
-      client,
-      moduleDef,
-      message,
-      history,
-      Boolean(attachmentVectorStoreId)
-    );
 
     if (!inScope) {
       response.status(400).json({
@@ -228,7 +271,7 @@ export default async function handler(request, response) {
               {
                 type: "file_search",
                 vector_store_ids: vectorStoreIds,
-                max_num_results: 6
+                max_num_results: FILE_SEARCH_MAX_RESULTS
               }
             ]
           }
