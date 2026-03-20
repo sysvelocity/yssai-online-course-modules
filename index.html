@@ -1,4 +1,4 @@
-<!-- YSS_STANDALONE_APP_V23 -->
+<!-- YSS_STANDALONE_APP_V24 -->
 <!doctype html>
 <html lang="en">
 <head>
@@ -270,6 +270,60 @@
     .message.assistant .bubble {
       background: var(--assistant-bg);
       border-left: 5px solid var(--red);
+    }
+
+    .message-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 10px;
+      padding-left: 10px;
+    }
+
+    .message-action {
+      appearance: none;
+      border: 0;
+      background: transparent;
+      color: #7a8797;
+      width: 28px;
+      height: 28px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background 120ms ease, color 120ms ease;
+      position: relative;
+    }
+
+    .message-action:hover,
+    .message-action:focus-visible {
+      background: rgba(34, 50, 71, 0.07);
+      color: var(--navy);
+      outline: none;
+    }
+
+    .message-action.copied {
+      color: var(--red);
+    }
+
+    .message-action .tooltip {
+      right: auto;
+      left: 50%;
+      transform: translateX(-50%) translateY(4px);
+      bottom: calc(100% + 8px);
+    }
+
+    .message-action .tooltip::after {
+      right: auto;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
+    .message-action:hover .tooltip,
+    .message-action:focus-visible .tooltip {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
     }
 
     .bubble p {
@@ -648,6 +702,7 @@
     const accessCodeInput = document.getElementById("accessCodeInput");
     const accessCodeSubmit = document.getElementById("accessCodeSubmit");
     const accessCodeError = document.getElementById("accessCodeError");
+    let copyFeedbackTimer = null;
 
     let state = {
       history: [],
@@ -844,6 +899,45 @@
       });
     }
 
+    async function copyAssistantResponse(index) {
+      const item = state.history[index];
+
+      if (!item || item.role !== "assistant") {
+        return;
+      }
+
+      try {
+        await navigator.clipboard.writeText(item.content || "");
+
+        if (copyFeedbackTimer) {
+          window.clearTimeout(copyFeedbackTimer);
+        }
+
+        const button = messagesEl.querySelector(`[data-copy-index="${index}"]`);
+        const tooltip = button ? button.querySelector(".tooltip") : null;
+
+        if (button) {
+          button.classList.add("copied");
+        }
+
+        if (tooltip) {
+          tooltip.textContent = "Copied";
+        }
+
+        copyFeedbackTimer = window.setTimeout(() => {
+          if (button) {
+            button.classList.remove("copied");
+          }
+
+          if (tooltip) {
+            tooltip.textContent = "Copy response";
+          }
+        }, 1600);
+      } catch (error) {
+        setBusy(false, "Copy failed");
+      }
+    }
+
     function render() {
       if (!state.history.length) {
         messagesEl.innerHTML = `
@@ -855,20 +949,40 @@
         return;
       }
 
-      messagesEl.innerHTML = state.history.map((item) => {
+      messagesEl.innerHTML = state.history.map((item, index) => {
         const role = item.role === "assistant" ? "assistant" : "user";
         const label = role === "assistant" ? "AI Assist Response" : "You";
         const content = role === "assistant"
           ? renderMarkdown(item.content || "")
           : escapeHtml(item.content || "").replaceAll("\n", "<br>");
+        const actions = role === "assistant" && item.content
+          ? `
+            <div class="message-actions">
+              <button class="message-action" type="button" aria-label="Copy response" data-copy-index="${index}">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <rect x="9" y="9" width="10" height="10" rx="2" stroke="currentColor" stroke-width="1.8"/>
+                  <rect x="5" y="5" width="10" height="10" rx="2" stroke="currentColor" stroke-width="1.8"/>
+                </svg>
+                <span class="tooltip">Copy response</span>
+              </button>
+            </div>
+          `
+          : "";
 
         return `
           <article class="message ${role}">
             <div class="label">${label}</div>
             <div class="bubble">${content}</div>
+            ${actions}
           </article>
         `;
       }).join("");
+
+      messagesEl.querySelectorAll("[data-copy-index]").forEach((button) => {
+        button.addEventListener("click", () => {
+          copyAssistantResponse(Number(button.dataset.copyIndex));
+        });
+      });
 
       scrollToBottom();
     }
