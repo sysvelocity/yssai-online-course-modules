@@ -64,7 +64,7 @@ export default async function handler(request, response) {
   }
 
   if (!isAuthorized(request)) {
-    rejectUnauthorized(response);
+    rejectUnauthorized(response, request);
     return;
   }
 

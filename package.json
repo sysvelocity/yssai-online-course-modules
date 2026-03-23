@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "formidable": "^3.5.4",
+    "jsonwebtoken": "^9.0.3",
     "openai": "^6.4.0"
   },
   "devDependencies": {

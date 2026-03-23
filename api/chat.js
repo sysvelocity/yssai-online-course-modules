@@ -3,6 +3,7 @@
 import OpenAI from "openai";
 import {
   isAccessControlEnabled,
+  isModuleTokenEnabled,
   isAuthorized,
   rejectUnauthorized
 } from "../lib/accessControl.js";
@@ -184,6 +185,7 @@ export default async function handler(request, response) {
       default_module: getDefaultModuleSlug(),
       module: getPublicModuleConfig(getDefaultModuleSlug()),
       access_control_enabled: isAccessControlEnabled(),
+      token_access_enabled: isModuleTokenEnabled(),
       moderation_enabled: true,
       file_search_enabled: Boolean(resolveModuleVectorStoreIds(getDefaultModuleSlug()).length),
       attachment_support: true
@@ -197,7 +199,7 @@ export default async function handler(request, response) {
   }
 
   if (!isAuthorized(request)) {
-    rejectUnauthorized(response);
+    rejectUnauthorized(response, request);
     return;
   }
 

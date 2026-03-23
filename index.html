@@ -723,10 +723,10 @@
     accessOverlay.className = "access-overlay";
     accessOverlay.innerHTML = `
       <div class="access-card">
-        <h2 class="access-title">Enter Access Code</h2>
-        <p class="access-copy">This AI Assist is protected. Enter the session access code to continue.</p>
+        <h2 id="accessTitle" class="access-title">Enter Access Code</h2>
+        <p id="accessCopy" class="access-copy">This AI Assist is protected. Enter the session access code to continue.</p>
         <input id="accessCodeInput" class="access-input" type="password" autocomplete="off" />
-        <div class="access-actions">
+        <div id="accessActions" class="access-actions">
           <button id="accessCodeSubmit" class="access-button" type="button">Continue</button>
         </div>
         <div id="accessCodeError" class="access-error"></div>
@@ -737,6 +737,9 @@
     const accessCodeInput = document.getElementById("accessCodeInput");
     const accessCodeSubmit = document.getElementById("accessCodeSubmit");
     const accessCodeError = document.getElementById("accessCodeError");
+    const accessTitle = document.getElementById("accessTitle");
+    const accessCopy = document.getElementById("accessCopy");
+    const accessActions = document.getElementById("accessActions");
     let copyFeedbackTimer = null;
 
     let state = {
@@ -755,6 +758,7 @@
     };
 
     let apiAccessCode = sessionStorage.getItem("yss_access_code") || "";
+    let moduleAccessToken = "";
 
     function escapeHtml(value) {
       return String(value)
@@ -852,6 +856,40 @@
       return "module-4";
     }
 
+    function getModuleTokenStorageKey() {
+      return `yss_module_token:${getRequestedModuleSlug()}`;
+    }
+
+    function loadStoredModuleToken() {
+      return sessionStorage.getItem(getModuleTokenStorageKey()) || "";
+    }
+
+    function storeModuleAccessToken(token) {
+      moduleAccessToken = token;
+
+      if (token) {
+        sessionStorage.setItem(getModuleTokenStorageKey(), token);
+      } else {
+        sessionStorage.removeItem(getModuleTokenStorageKey());
+      }
+    }
+
+    function consumeLaunchTokenFromUrl() {
+      const params = new URLSearchParams(window.location.search);
+      const token = params.get("token");
+
+      if (!token) {
+        moduleAccessToken = loadStoredModuleToken();
+        return;
+      }
+
+      storeModuleAccessToken(token);
+      params.delete("token");
+      const nextSearch = params.toString();
+      const nextUrl = `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ""}${window.location.hash}`;
+      window.history.replaceState({}, document.title, nextUrl);
+    }
+
     function applyModuleConfig(moduleConfig) {
       if (!moduleConfig) {
         return;
@@ -867,7 +905,14 @@
 
     async function loadModuleConfig() {
       try {
-        const response = await fetch(`/api/module?module=${encodeURIComponent(getRequestedModuleSlug())}`);
+        const response = await fetch(`/api/module?module=${encodeURIComponent(getRequestedModuleSlug())}`, {
+          headers: getApiHeaders()
+        });
+
+        if (response.status === 401) {
+          showLaunchRequiredOverlay();
+          return;
+        }
 
         if (!response.ok) {
           return;
@@ -976,14 +1021,33 @@
         headers["X-App-Access-Code"] = apiAccessCode;
       }
 
+      if (moduleAccessToken) {
+        headers["X-Module-Token"] = moduleAccessToken;
+      }
+
+      headers["X-Module-Slug"] = getRequestedModuleSlug();
+
       return headers;
     }
 
-    function showAccessOverlay() {
+    function showAccessCodeOverlay() {
+      accessTitle.textContent = "Enter Access Code";
+      accessCopy.textContent = "This AI Assist is protected. Enter the session access code to continue.";
+      accessCodeInput.style.display = "";
+      accessActions.style.display = "";
       accessOverlay.classList.add("visible");
       accessCodeInput.value = "";
       accessCodeError.textContent = "";
       setTimeout(() => accessCodeInput.focus(), 0);
+    }
+
+    function showLaunchRequiredOverlay() {
+      accessTitle.textContent = "Launch Required";
+      accessCopy.textContent = "Please return to the course website and launch this module from there so we can verify your access.";
+      accessCodeInput.style.display = "none";
+      accessActions.style.display = "none";
+      accessCodeError.textContent = "";
+      accessOverlay.classList.add("visible");
     }
 
     function hideAccessOverlay() {
@@ -991,17 +1055,28 @@
     }
 
     async function requireAccessIfNeeded() {
-      const response = await fetch("/api/chat", { method: "GET" });
+      const response = await fetch("/api/chat", {
+        method: "GET",
+        headers: getApiHeaders()
+      });
       const health = await response.json();
 
-      if (!health.access_control_enabled) {
+      if (!health.access_control_enabled && !health.token_access_enabled) {
         hideAccessOverlay();
         return;
       }
 
-      if (!apiAccessCode) {
-        showAccessOverlay();
+      if (health.token_access_enabled && !moduleAccessToken) {
+        showLaunchRequiredOverlay();
+        return;
       }
+
+      if (health.access_control_enabled && !apiAccessCode) {
+        showAccessCodeOverlay();
+        return;
+      }
+
+      hideAccessOverlay();
     }
 
     function scrollToBottom() {
@@ -1253,7 +1328,12 @@
           error && error.message ? error.message : "Request failed";
 
         if (error && error.code === "invalid_access_code") {
-          showAccessOverlay();
+          showAccessCodeOverlay();
+        }
+
+        if (error && error.code === "invalid_module_token") {
+          storeModuleAccessToken("");
+          showLaunchRequiredOverlay();
         }
 
         state.history.push({
@@ -1414,7 +1494,9 @@
       const payload = JSON.stringify({
         vectorStoreId: state.attachment.vectorStoreId,
         fileId: state.attachment.fileId,
-        accessCode: apiAccessCode
+        accessCode: apiAccessCode,
+        moduleToken: moduleAccessToken,
+        module: getRequestedModuleSlug()
       });
 
       navigator.sendBeacon(
@@ -1424,6 +1506,7 @@
     });
 
     renderAttachment();
+    consumeLaunchTokenFromUrl();
     requireAccessIfNeeded();
     loadModuleConfig();
     render();
