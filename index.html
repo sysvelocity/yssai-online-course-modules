@@ -5,7 +5,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>YSS AI Assist</title>
-  <meta name="app-version" content="v2.0.1" />
+  <meta name="app-version" content="v2.0.2" />
   <style>
     :root {
       --bg: #6e8d9d;
@@ -738,7 +738,7 @@
         </div>
       </div>
       <div class="footer">
-        <span>v2.0.1</span>
+        <span>v2.0.2</span>
         <span>Copyright Mike Weinberg Sales LLC</span>
       </div>
     </section>
@@ -1218,7 +1218,9 @@
     }
 
     function getAttachmentVectorStoreIds() {
-      return state.attachments.map((attachment) => attachment.vectorStoreId).filter(Boolean);
+      return [...new Set(
+        state.attachments.map((attachment) => attachment.vectorStoreId).filter(Boolean)
+      )];
     }
 
     function renderAttachment() {
@@ -1340,7 +1342,12 @@
       }
 
       await cleanupAttachment(attachment);
-      setBusy(false, "Attachment removed.");
+      setBusy(
+        false,
+        state.attachments.length
+          ? `Removed ${attachment.fileName}. ${state.attachments.length} attachment${state.attachments.length === 1 ? "" : "s"} still active.`
+          : `Removed ${attachment.fileName}. No attachments remain.`
+      );
     });
 
     sendBtn.addEventListener("click", async () => {

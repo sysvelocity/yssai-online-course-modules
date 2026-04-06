@@ -15,7 +15,7 @@ import {
   resolveModuleVectorStoreIds
 } from "../lib/modules.js";
 
-const APP_VERSION = "v2.0.1";
+const APP_VERSION = "v2.0.2";
 
 export const config = {
   runtime: "nodejs"
@@ -215,10 +215,12 @@ export default async function handler(request, response) {
     ? []
     : resolveModuleVectorStoreIds(moduleDef.slug);
   const attachmentVectorStoreIds = Array.isArray(request.body?.attachmentVectorStoreIds)
-    ? request.body.attachmentVectorStoreIds
+    ? [...new Set(
+        request.body.attachmentVectorStoreIds
         .filter((value) => typeof value === "string")
         .map((value) => value.trim())
         .filter(Boolean)
+      )]
     : typeof request.body?.attachmentVectorStoreId === "string"
       ? [request.body.attachmentVectorStoreId.trim()].filter(Boolean)
       : [];
