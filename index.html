@@ -5,7 +5,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>YSS AI Assist</title>
-  <meta name="app-version" content="v2.0.0" />
+  <meta name="app-version" content="v2.0.1" />
   <style>
     :root {
       --bg: #6e8d9d;
@@ -505,6 +505,8 @@
     .attachment-row {
       display: none;
       margin: 0 0 10px 6px;
+      flex-direction: column;
+      gap: 8px;
     }
 
     .attachment-row.visible {
@@ -546,6 +548,13 @@
       border-radius: 999px;
       font-size: 14px;
       line-height: 1;
+    }
+
+    .attachment-note {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
     }
 
     .button {
@@ -700,6 +709,7 @@
           <span id="attachmentName" class="attachment-name"></span>
           <button id="removeAttachmentBtn" class="attachment-remove" type="button" aria-label="Remove attachment">×</button>
         </div>
+        <p class="attachment-note">One attachment at a time. Adding a new file replaces the current attachment.</p>
       </div>
       <div class="composer">
         <textarea
@@ -725,7 +735,7 @@
         </div>
       </div>
       <div class="footer">
-        <span>v2.0.0</span>
+        <span>v2.0.1</span>
         <span>Copyright Mike Weinberg Sales LLC</span>
       </div>
     </section>
@@ -1281,6 +1291,8 @@
         return;
       }
 
+      const replacedFileName = state.attachment ? state.attachment.fileName : "";
+
       if (state.attachment) {
         await cleanupAttachment();
       }
@@ -1289,7 +1301,12 @@
 
       try {
         await uploadAttachment(file);
-        setBusy(false, `Attached: ${state.attachment.fileName}`);
+        setBusy(
+          false,
+          replacedFileName
+            ? `Replaced ${replacedFileName} with ${state.attachment.fileName}.`
+            : `Attached: ${state.attachment.fileName}`
+        );
       } catch (error) {
         setBusy(false, error && error.message ? error.message : "Upload failed");
       }
