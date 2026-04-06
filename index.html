@@ -513,6 +513,12 @@
       display: flex;
     }
 
+    .attachment-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
     .attachment-chip {
       display: inline-flex;
       align-items: center;
@@ -705,11 +711,8 @@
     <section class="composer-wrap">
       <div id="status" class="status">Ready</div>
       <div id="attachmentRow" class="attachment-row">
-        <div class="attachment-chip">
-          <span id="attachmentName" class="attachment-name"></span>
-          <button id="removeAttachmentBtn" class="attachment-remove" type="button" aria-label="Remove attachment">×</button>
-        </div>
-        <p class="attachment-note">One attachment at a time. Adding a new file replaces the current attachment.</p>
+        <div id="attachmentList" class="attachment-list"></div>
+        <p class="attachment-note">You can add several attachments. For this step, chat still uses the most recently attached file while we finish the backend update.</p>
       </div>
       <div class="composer">
         <textarea
@@ -748,8 +751,7 @@
     const moduleTitleEl = document.getElementById("moduleTitle");
     const moduleSubtitleEl = document.getElementById("moduleSubtitle");
     const attachmentRow = document.getElementById("attachmentRow");
-    const attachmentNameEl = document.getElementById("attachmentName");
-    const removeAttachmentBtn = document.getElementById("removeAttachmentBtn");
+    const attachmentListEl = document.getElementById("attachmentList");
     const attachBtn = document.getElementById("attachBtn");
     const sendBtn = document.getElementById("sendBtn");
     const statusEl = document.getElementById("status");
@@ -757,6 +759,7 @@
     const fileInput = document.createElement("input");
 
     fileInput.type = "file";
+    fileInput.multiple = true;
     fileInput.accept = ".txt,.pdf,.docx";
     fileInput.style.display = "none";
     document.body.appendChild(fileInput);
@@ -779,7 +782,7 @@
     let state = {
       history: [],
       busy: false,
-      attachment: null,
+      attachments: [],
       module: {
         slug: "module-4",
         moduleNumber: "Module 4",
@@ -1214,28 +1217,39 @@
       sendBtn.classList.toggle("ready", hasContent && !state.busy);
     }
 
+    function getActiveAttachment() {
+      return state.attachments[state.attachments.length - 1] || null;
+    }
+
     function renderAttachment() {
-      if (!state.attachment) {
+      if (!state.attachments.length) {
         attachmentRow.classList.remove("visible");
-        attachmentNameEl.textContent = "";
+        attachmentListEl.innerHTML = "";
         return;
       }
 
-      attachmentNameEl.textContent = state.attachment.fileName;
+      attachmentListEl.innerHTML = state.attachments.map((attachment, index) => `
+        <div class="attachment-chip">
+          <span class="attachment-name">${escapeHtml(attachment.fileName)}</span>
+          <button class="attachment-remove" type="button" aria-label="Remove attachment" data-attachment-index="${index}">×</button>
+        </div>
+      `).join("");
       attachmentRow.classList.add("visible");
     }
 
-    async function cleanupAttachment() {
-      if (!state.attachment) {
+    async function cleanupAttachment(attachmentToRemove = null) {
+      const attachment = attachmentToRemove || getActiveAttachment();
+
+      if (!attachment) {
         return;
       }
 
       const payload = {
-        vectorStoreId: state.attachment.vectorStoreId,
-        fileId: state.attachment.fileId
+        vectorStoreId: attachment.vectorStoreId,
+        fileId: attachment.fileId
       };
 
-      state.attachment = null;
+      state.attachments = state.attachments.filter((item) => item.fileId !== attachment.fileId);
       renderAttachment();
 
       try {
@@ -1267,11 +1281,11 @@
         throw new Error(result?.error || "Upload failed");
       }
 
-      state.attachment = {
+      state.attachments.push({
         fileName: result.fileName,
         fileId: result.fileId,
         vectorStoreId: result.vectorStoreId
-      };
+      });
 
       renderAttachment();
     }
@@ -1284,40 +1298,39 @@
     });
 
     fileInput.addEventListener("change", async () => {
-      const file = fileInput.files && fileInput.files[0];
+      const files = Array.from(fileInput.files || []);
       fileInput.value = "";
 
-      if (!file) {
+      if (!files.length) {
         return;
-      }
-
-      const replacedFileName = state.attachment ? state.attachment.fileName : "";
-
-      if (state.attachment) {
-        await cleanupAttachment();
       }
 
       setBusy(true, "Uploading attachment...");
 
       try {
-        await uploadAttachment(file);
-        setBusy(
-          false,
-          replacedFileName
-            ? `Replaced ${replacedFileName} with ${state.attachment.fileName}.`
-            : `Attached: ${state.attachment.fileName}`
-        );
+        for (const file of files) {
+          await uploadAttachment(file);
+        }
+        const activeAttachment = getActiveAttachment();
+        setBusy(false, activeAttachment ? `Attached: ${activeAttachment.fileName}` : "Attachments updated.");
       } catch (error) {
         setBusy(false, error && error.message ? error.message : "Upload failed");
       }
     });
 
-    removeAttachmentBtn.addEventListener("click", async () => {
-      if (state.busy) {
+    attachmentListEl.addEventListener("click", async (event) => {
+      const button = event.target.closest("[data-attachment-index]");
+      if (!button || state.busy) {
         return;
       }
 
-      await cleanupAttachment();
+      const index = Number(button.dataset.attachmentIndex);
+      const attachment = state.attachments[index];
+      if (!attachment) {
+        return;
+      }
+
+      await cleanupAttachment(attachment);
       setBusy(false, "Attachment removed.");
     });
 
@@ -1341,7 +1354,7 @@
       setBusy(true, "Streaming response...");
 
       try {
-        await streamChat(message, historyForRequest, state.attachment);
+        await streamChat(message, historyForRequest, getActiveAttachment());
         setBusy(false, "Done");
       } catch (error) {
         const messageText =
@@ -1476,21 +1489,23 @@
     resetInputSize();
     updateSendButtonState();
     window.addEventListener("pagehide", () => {
-      if (!state.attachment) {
+      if (!state.attachments.length) {
         return;
       }
 
-      const payload = JSON.stringify({
-        vectorStoreId: state.attachment.vectorStoreId,
-        fileId: state.attachment.fileId,
-        moduleToken: moduleAccessToken,
-        module: getRequestedModuleSlug()
-      });
+      state.attachments.forEach((attachment) => {
+        const payload = JSON.stringify({
+          vectorStoreId: attachment.vectorStoreId,
+          fileId: attachment.fileId,
+          moduleToken: moduleAccessToken,
+          module: getRequestedModuleSlug()
+        });
 
-      navigator.sendBeacon(
-        "/api/delete-attachment",
-        new Blob([payload], { type: "application/json" })
-      );
+        navigator.sendBeacon(
+          "/api/delete-attachment",
+          new Blob([payload], { type: "application/json" })
+        );
+      });
     });
 
     renderAttachment();
