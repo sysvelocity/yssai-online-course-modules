@@ -451,6 +451,56 @@
       flex-wrap: wrap;
     }
 
+    .footer-meta {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .footer-action {
+      appearance: none;
+      border: 0;
+      background: transparent;
+      color: #7a8797;
+      width: 28px;
+      height: 28px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background 120ms ease, color 120ms ease;
+      position: relative;
+      padding: 0;
+    }
+
+    .footer-action:hover,
+    .footer-action:focus-visible {
+      background: rgba(34, 50, 71, 0.07);
+      color: var(--navy);
+      outline: none;
+    }
+
+    .footer-action .tooltip {
+      right: auto;
+      left: 50%;
+      transform: translateX(-50%) translateY(4px);
+      bottom: calc(100% + 8px);
+    }
+
+    .footer-action .tooltip::after {
+      right: auto;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
+    .footer-action:hover .tooltip,
+    .footer-action:focus-visible .tooltip {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
     .status {
       min-height: 18px;
       margin: 0 0 10px;
@@ -738,7 +788,18 @@
         </div>
       </div>
       <div class="footer">
-        <span>v2.0.2</span>
+        <div class="footer-meta">
+          <span>v2.0.2</span>
+          <button id="exportSessionBtn" class="footer-action" type="button" aria-label="Export session">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+              <path d="M14 3v5h5" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+              <path d="M12 11v6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+              <path d="M9.5 14.5L12 17l2.5-2.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span class="tooltip">Export Session</span>
+          </button>
+        </div>
         <span>Copyright Mike Weinberg Sales LLC</span>
       </div>
     </section>
@@ -754,6 +815,7 @@
     const attachmentListEl = document.getElementById("attachmentList");
     const attachBtn = document.getElementById("attachBtn");
     const sendBtn = document.getElementById("sendBtn");
+    const exportSessionBtn = document.getElementById("exportSessionBtn");
     const statusEl = document.getElementById("status");
     const accessOverlay = document.createElement("div");
     const fileInput = document.createElement("input");
@@ -1099,6 +1161,53 @@
       requestAnimationFrame(() => {
         messagesEl.scrollTop = messagesEl.scrollHeight;
       });
+    }
+
+    function buildExportHtml() {
+      const moduleLabel = escapeHtml(state.module.moduleNumber || "");
+      const moduleTitle = escapeHtml(state.module.title || "");
+      const rows = state.history.map((item) => {
+        const roleLabel = item.role === "assistant" ? "AI Assist" : "You";
+        const content = item.role === "assistant"
+          ? renderMarkdown(item.content || "")
+          : `<p>${escapeHtml(item.content || "").replaceAll("\n", "<br>")}</p>`;
+
+        return `
+          <section style="margin:0 0 18px;">
+            <p style="margin:0 0 6px;font:700 12px Arial,sans-serif;letter-spacing:0.04em;text-transform:uppercase;color:#5d6c7f;">${roleLabel}</p>
+            <div style="font:16px/1.65 Arial,sans-serif;color:#223247;">${content}</div>
+          </section>
+        `;
+      }).join("");
+
+      return `
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <title>${moduleLabel} ${moduleTitle}</title>
+          </head>
+          <body style="font-family:Arial,sans-serif;color:#223247;padding:32px;">
+            <h1 style="margin:0 0 6px;font-size:24px;">${moduleTitle}</h1>
+            <p style="margin:0 0 24px;color:#5d6c7f;">${moduleLabel}</p>
+            ${rows || "<p>No chat content to export.</p>"}
+          </body>
+        </html>
+      `;
+    }
+
+    function exportSession() {
+      const html = buildExportHtml();
+      const blob = new Blob([html], { type: "application/msword" });
+      const moduleSlug = (state.module.slug || "session").replace(/[^a-z0-9.-]/gi, "-");
+      const dateStamp = new Date().toISOString().slice(0, 10);
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `${moduleSlug}-session-${dateStamp}.doc`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(link.href);
+      setBusy(false, "Session exported.");
     }
 
     async function copyAssistantResponse(index) {
@@ -1502,6 +1611,10 @@
     inputEl.addEventListener("input", () => {
       autoResizeInput();
       updateSendButtonState();
+    });
+
+    exportSessionBtn.addEventListener("click", () => {
+      exportSession();
     });
 
     resetInputSize();
