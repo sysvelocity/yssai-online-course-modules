@@ -1326,6 +1326,37 @@
       sendBtn.classList.toggle("ready", hasContent && !state.busy);
     }
 
+    function isLowValueAssistantReply(text) {
+      const normalized = String(text || "").trim().toLowerCase();
+
+      if (!normalized) {
+        return true;
+      }
+
+      const exactBadReplies = new Set([
+        "could not do that.",
+        "could not do that",
+        "i could not do that.",
+        "i could not do that",
+        "can't do that.",
+        "can't do that",
+        "i can't do that.",
+        "i can't do that",
+        "unable to do that.",
+        "unable to do that"
+      ]);
+
+      if (exactBadReplies.has(normalized)) {
+        return true;
+      }
+
+      return normalized.length <= 24 && (
+        normalized.includes("could not do that") ||
+        normalized.includes("can't do that") ||
+        normalized.includes("unable to do that")
+      );
+    }
+
     function getAttachmentVectorStoreIds() {
       return [...new Set(
         state.attachments.map((attachment) => attachment.vectorStoreId).filter(Boolean)
@@ -1479,7 +1510,28 @@
       setBusy(true, "Streaming response...");
 
       try {
-        await streamChat(message, historyForRequest, getAttachmentVectorStoreIds());
+        let didRetryLowValue = false;
+
+        while (true) {
+          await streamChat(message, historyForRequest, getAttachmentVectorStoreIds());
+          const lastItem = state.history[state.history.length - 1];
+
+          if (
+            !didRetryLowValue &&
+            lastItem &&
+            lastItem.role === "assistant" &&
+            isLowValueAssistantReply(lastItem.content)
+          ) {
+            didRetryLowValue = true;
+            state.history.pop();
+            render();
+            setBusy(true, "Retrying response...");
+            continue;
+          }
+
+          break;
+        }
+
         setBusy(false, "Done");
       } catch (error) {
         const messageText =
