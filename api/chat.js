@@ -23,7 +23,6 @@ export const config = {
 
 const DEFAULT_MODEL = "gpt-5.2";
 const MODERATION_MODEL = "omni-moderation-latest";
-const SCOPE_MODEL = "gpt-4.1-mini";
 const DEFAULT_TEMPERATURE = 0.8;
 const DEFAULT_PRESENCE_PENALTY = 0.2;
 const FILE_SEARCH_MAX_RESULTS = 4;
@@ -99,99 +98,6 @@ async function moderateInput(client, message) {
   };
 }
 
-function getRecentHistorySummary(history = []) {
-  return normalizeHistory(history)
-    .slice(-6)
-    .map((item, index) => `${index + 1}. ${item.role}: ${item.content}`)
-    .join("\n");
-}
-
-function isContinuationLikeMessage(message = "") {
-  const trimmed = String(message || "").trim().toLowerCase();
-
-  if (!trimmed) {
-    return false;
-  }
-
-  const exactMatches = new Set([
-    "a",
-    "(a)",
-    "again",
-    "another",
-    "another one",
-    "another story",
-    "give me another",
-    "give me another story",
-    "start again",
-    "try again",
-    "continue",
-    "go on",
-    "keep going",
-    "carry on",
-    "more",
-    "next",
-    "finish",
-    "resume"
-  ]);
-
-  if (exactMatches.has(trimmed)) {
-    return true;
-  }
-
-  const partialMatches = [
-    "another outline",
-    "produce another",
-    "give me another version",
-    "give me another one",
-    "start again using the same inputs",
-    "run it again",
-    "continue your response",
-    "continue the response",
-    "you stalled",
-    "you stopped",
-    "pick up where you left off",
-    "give me the refined",
-    "give me the sharpened",
-    "show the rest",
-    "finish your response",
-    "resume from"
-  ];
-
-  return partialMatches.some((phrase) => trimmed.includes(phrase));
-}
-
-async function checkScope(client, moduleDef, message, history, hasAttachment) {
-  const response = await client.responses.create({
-    model: SCOPE_MODEL,
-    input: [
-      {
-        role: "system",
-        content: [
-          {
-            type: "input_text",
-            text: moduleDef.scopeClassifierPrompt
-          }
-        ]
-      },
-      {
-        role: "user",
-        content: [
-          {
-            type: "input_text",
-            text:
-              `Attachment present: ${hasAttachment ? "yes" : "no"}\n` +
-              `Recent conversation:\n${getRecentHistorySummary(history) || "None"}\n\n` +
-              `Latest user request: ${message}`
-          }
-        ]
-      }
-    ]
-  });
-
-  const decision = String(response.output_text || "").trim().toUpperCase();
-  return decision === "ALLOW";
-}
-
 export default async function handler(request, response) {
   if (handleCors(request, response, { methods: "GET, POST, OPTIONS" })) {
     return;
@@ -257,32 +163,12 @@ export default async function handler(request, response) {
   const client = new OpenAI({ apiKey });
 
   try {
-    const continuationLike = isContinuationLikeMessage(message);
-    const [moderation, inScope] = await Promise.all([
-      moderateInput(client, message),
-      continuationLike
-        ? Promise.resolve(true)
-        : checkScope(
-            client,
-            moduleDef,
-            message,
-            history,
-            attachmentVectorStoreIds.length > 0
-          )
-    ]);
+    const moderation = await moderateInput(client, message);
 
     if (moderation.flagged) {
       response.status(400).json({
         error: "This message cannot be processed.",
         code: "moderation_blocked"
-      });
-      return;
-    }
-
-    if (!inScope) {
-      response.status(400).json({
-        error: moduleDef.scopeErrorMessage,
-        code: "scope_blocked"
       });
       return;
     }
