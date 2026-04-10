@@ -1222,7 +1222,7 @@
         const renderedContent = button
           ? button.closest(".message")?.querySelector(".assistant-content, .bubble")
           : null;
-        const plainText = item.content || "";
+        const plainText = renderedContent?.innerText?.trim() || item.content || "";
 
         if (renderedContent && navigator.clipboard && window.ClipboardItem && navigator.clipboard.write) {
           const html = renderedContent.innerHTML;
