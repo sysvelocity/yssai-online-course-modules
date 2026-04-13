@@ -15,7 +15,7 @@ import {
   resolveModuleVectorStoreIds
 } from "../lib/modules.js";
 
-const APP_VERSION = "v2.0.6";
+const APP_VERSION = "v2.0.7";
 
 export const config = {
   runtime: "nodejs"
