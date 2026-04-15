@@ -44,6 +44,11 @@
       padding: 28px;
     }
 
+    body.support-embed {
+      padding: 0;
+      background: #ffffff;
+    }
+
     .shell {
       max-width: 1100px;
       margin: 0 auto;
@@ -59,6 +64,16 @@
         0 30px 80px rgba(34, 50, 71, 0.18),
         0 8px 24px rgba(34, 50, 71, 0.08);
       overflow: hidden;
+    }
+
+    body.support-embed .shell {
+      max-width: 100%;
+      min-height: 100vh;
+      border: 0;
+      border-left: 0;
+      border-radius: 0;
+      box-shadow: none;
+      background: #ffffff;
     }
 
     .access-overlay {
@@ -141,6 +156,11 @@
       background: var(--surface-white);
     }
 
+    body.support-embed .header {
+      padding: 20px 22px 16px;
+      border-bottom: 1px solid rgba(213, 218, 221, 0.85);
+    }
+
     .eyebrow {
       margin: 0 0 10px;
       color: var(--navy);
@@ -170,6 +190,13 @@
       line-height: 1.6;
     }
 
+    body.support-embed .subtitle-copy {
+      max-width: none;
+      margin-top: 10px;
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
     .brand {
       align-items: flex-start;
       display: grid;
@@ -178,11 +205,20 @@
       padding: 0;
     }
 
+    body.support-embed .brand {
+      grid-template-columns: 1fr;
+      gap: 0;
+    }
+
     .logo {
       display: block;
       width: 88px;
       height: auto;
       margin-top: 2px;
+    }
+
+    body.support-embed .logo {
+      display: none;
     }
 
     .brand-copy {
@@ -194,12 +230,32 @@
       padding-top: 2px;
     }
 
+    body.support-embed .brand-copy {
+      min-height: 0;
+      padding-top: 0;
+    }
+
     .header-rule {
       width: 72px;
       height: 3px;
       margin-top: 18px;
       border-radius: 999px;
       background: linear-gradient(90deg, var(--red) 0%, rgba(199, 31, 55, 0.2) 100%);
+    }
+
+    body.support-embed .eyebrow {
+      margin-bottom: 6px;
+      font-size: 11px;
+    }
+
+    body.support-embed .header-title {
+      font-size: 20px;
+      max-width: none;
+    }
+
+    body.support-embed .header-rule {
+      width: 48px;
+      margin-top: 14px;
     }
 
     .messages {
@@ -210,6 +266,11 @@
       scroll-behavior: smooth;
       background:
         linear-gradient(180deg, rgba(245, 247, 250, 0.88) 0%, rgba(255,255,255,0.66) 100%);
+    }
+
+    body.support-embed .messages {
+      padding: 20px 18px 12px;
+      background: linear-gradient(180deg, rgba(245, 247, 250, 0.78) 0%, rgba(255,255,255,0.96) 100%);
     }
 
     .empty {
@@ -242,9 +303,18 @@
       margin: 0 auto 30px;
     }
 
+    body.support-embed .message {
+      max-width: 100%;
+      margin-bottom: 22px;
+    }
+
     .message.user {
       max-width: 680px;
       margin: 0 0 22px auto;
+    }
+
+    body.support-embed .message.user {
+      max-width: 88%;
     }
 
     .message.user .bubble {
@@ -439,6 +509,11 @@
       background: linear-gradient(180deg, rgba(245,247,250,0.2) 0%, rgba(255,255,255,0.94) 16%, rgba(255,255,255,1) 100%);
     }
 
+    body.support-embed .composer-wrap {
+      padding: 12px 16px 14px;
+      background: rgba(255,255,255,0.98);
+    }
+
     .footer {
       margin-top: 12px;
       padding-top: 10px;
@@ -449,6 +524,10 @@
       justify-content: space-between;
       gap: 12px;
       flex-wrap: wrap;
+    }
+
+    body.support-embed .footer {
+      display: none;
     }
 
     .footer-meta {
@@ -611,6 +690,10 @@
       color: var(--muted);
       font-size: 12px;
       line-height: 1.45;
+    }
+
+    body.support-embed .attachment-note {
+      font-size: 11px;
     }
 
     .button {
@@ -956,6 +1039,11 @@
       return "module-4";
     }
 
+    function isEmbeddedSupportMode() {
+      const params = new URLSearchParams(window.location.search);
+      return getRequestedModuleSlug() === "support-chat" && params.get("embed") === "1";
+    }
+
     function getModuleTokenStorageKey() {
       return `yss_module_token:${getRequestedModuleSlug()}`;
     }
@@ -1001,6 +1089,7 @@
       moduleTitleEl.textContent = moduleConfig.title || "";
       moduleSubtitleEl.textContent = moduleConfig.subtitle || "";
       inputEl.placeholder = moduleConfig.inputPlaceholder || "";
+      document.body.classList.toggle("support-embed", isEmbeddedSupportMode());
     }
 
     async function loadModuleConfig() {
