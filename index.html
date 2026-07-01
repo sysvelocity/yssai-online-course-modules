@@ -882,9 +882,9 @@
           alt="Your Sales Story with AI Assist"
         />
         <div class="brand-copy">
-          <p id="moduleEyebrow" class="eyebrow">Module 4</p>
-          <h1 id="moduleTitle" class="header-title">Draft Your Customer Issues Addressed Talking Points</h1>
-          <p id="moduleSubtitle" class="subtitle-copy">Sales friend, now it's time to get to work. Please provide a Bridge Line + your talking points on Customer Issues Addressed &amp; Outcomes Delivered (Video Module 4). You'll receive detailed feedback to help you refine further.</p>
+          <p id="moduleEyebrow" class="eyebrow">Loading module...</p>
+          <h1 id="moduleTitle" class="header-title">Preparing Your AI Assist</h1>
+          <p id="moduleSubtitle" class="subtitle-copy">Please wait while we load the correct AI Assist for this module.</p>
           <div class="header-rule"></div>
         </div>
       </div>
@@ -892,13 +892,13 @@
 
     <section id="messages" class="messages">
       <div class="empty">
-        <p class="empty-title">Start With Your Bridge Line And Talking Points</p>
-        <p class="empty-copy">Paste your draft below, or ask for help getting started. You can also attach your bridge line and talking points from a document, as source material for a stronger first pass.</p>
+        <p class="empty-title">Loading Module</p>
+        <p class="empty-copy">We&apos;re preparing the correct AI Assist for this page.</p>
       </div>
     </section>
 
     <section class="composer-wrap">
-      <div id="status" class="status">Ready</div>
+      <div id="status" class="status">Loading module...</div>
       <div id="attachmentRow" class="attachment-row">
         <div id="attachmentList" class="attachment-list"></div>
         <p class="attachment-note">You can add several attachments. All current attachments are included in the chat session until you remove them.</p>
@@ -907,7 +907,7 @@
         <textarea
           id="input"
           class="input"
-          placeholder="Paste your bridge line and talking points, or ask for help getting started."
+          placeholder="Loading module..."
         ></textarea>
         <div class="actions">
           <button id="voiceBtn" class="button voice" type="button" aria-label="Start voice dictation">
@@ -938,7 +938,7 @@
       <div class="footer">
         <div class="footer-meta">
           <span>v2.1.0</span>
-          <button id="exportSessionBtn" class="footer-action" type="button" aria-label="Export session">
+          <button id="exportSessionBtn" class="footer-action" type="button" aria-label="Export session" style="display:none">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
               <path d="M14 3v5h5" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
@@ -993,19 +993,19 @@
 
     let state = {
       history: [],
-      busy: false,
+      busy: true,
       attachments: [],
       module: {
-        slug: "module-4",
-        moduleNumber: "Module 4",
-        title: "Draft Your Customer Issues Addressed Talking Points",
-        subtitle: "Sales friend, now it's time to get to work. Please provide a Bridge Line + your talking points on Customer Issues Addressed & Outcomes Delivered (Video Module 4). You'll receive detailed feedback to help you refine further.",
-        emptyTitle: "Start With Your Bridge Line And Talking Points",
-        emptyCopy: "Paste your draft below, or ask for help getting started. You can also attach your bridge line and talking points from a document, as source material for a stronger first pass.",
-        inputPlaceholder: "Paste your bridge line and talking points, or ask for help getting started.",
+        slug: getRequestedModuleSlug(),
+        moduleNumber: "Loading module...",
+        title: "Preparing Your AI Assist",
+        subtitle: "Please wait while we load the correct AI Assist for this module.",
+        emptyTitle: "Loading Module",
+        emptyCopy: "We're preparing the correct AI Assist for this page.",
+        inputPlaceholder: "Loading module...",
         starterPrompts: [],
-        attachmentsEnabled: true,
-        exportEnabled: true,
+        attachmentsEnabled: false,
+        exportEnabled: false,
         voiceDictationEnabled: false
       }
     };
@@ -1180,10 +1180,12 @@
 
         if (response.status === 401) {
           showLaunchRequiredOverlay();
+          setBusy(false, "Launch required.");
           return;
         }
 
         if (!response.ok) {
+          setBusy(false, "Could not load module.");
           return;
         }
 
@@ -1191,9 +1193,14 @@
 
         if (result && result.module) {
           applyModuleConfig(result.module);
+          setBusy(false, "Ready");
           render();
+          return;
         }
+
+        setBusy(false, "Could not load module.");
       } catch (error) {
+        setBusy(false, "Could not load module.");
       }
     }
 
@@ -2074,9 +2081,9 @@
       exportSession();
     });
 
+    applyModuleConfig(state.module);
     resetInputSize();
-    updateVoiceDictationAvailability();
-    updateSendButtonState();
+    setBusy(state.busy, "Loading module...");
     window.addEventListener("pagehide", () => {
       if (!state.attachments.length) {
         return;
