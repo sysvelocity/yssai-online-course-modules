@@ -7,6 +7,7 @@ import {
   rejectUnauthorized
 } from "../lib/accessControl.js";
 import { handleCors, setCorsHeaders } from "../lib/cors.js";
+import { buildGenerationOptions } from "../lib/openaiModelConfig.js";
 import {
   getDefaultModuleSlug,
   getModuleDefinition,
@@ -15,7 +16,7 @@ import {
   resolveModuleVectorStoreIds
 } from "../lib/modules.js";
 
-const APP_VERSION = "v2.0.9";
+const APP_VERSION = "v2.1.0";
 
 export const config = {
   runtime: "nodejs"
@@ -27,6 +28,31 @@ const DEFAULT_TEMPERATURE = 0.8;
 const DEFAULT_PRESENCE_PENALTY = 0.2;
 const FILE_SEARCH_MAX_RESULTS = 4;
 const MAX_INLINE_ATTACHMENT_CHARS = 160000;
+const PUBLIC_CHAT_ERROR_MESSAGE =
+  "The AI service could not complete this request. Please try again in a moment.";
+
+function logChatError(error, context = {}) {
+  console.error("[api/chat] OpenAI request failed", {
+    ...context,
+    error: error && error.message ? error.message : String(error || "Unknown error"),
+    status: error && typeof error.status === "number" ? error.status : undefined,
+    code: error && error.code ? error.code : undefined
+  });
+}
+
+function writeStreamError(response) {
+  if (response.writableEnded) {
+    return;
+  }
+
+  response.write(
+    `data: ${JSON.stringify({
+      type: "error",
+      message: PUBLIC_CHAT_ERROR_MESSAGE
+    })}\n\n`
+  );
+  response.end();
+}
 
 function buildInstructions(moduleDef) {
   if (!moduleDef.knowledgeText) {
@@ -262,8 +288,11 @@ export default async function handler(request, response) {
       model,
       instructions: buildInstructions(moduleDef),
       input: buildInput(history, message, attachmentTexts),
-      temperature: DEFAULT_TEMPERATURE,
-      presence_penalty: DEFAULT_PRESENCE_PENALTY,
+      ...buildGenerationOptions(model, {
+        temperature: DEFAULT_TEMPERATURE,
+        presencePenalty: DEFAULT_PRESENCE_PENALTY,
+        reasoningEffort: "low"
+      }),
       ...(vectorStoreIds.length
         ? {
             tools: [
@@ -293,20 +322,27 @@ export default async function handler(request, response) {
         response.write(`data: ${JSON.stringify({ type: "done" })}\n\n`);
       }
 
-      if (event.type === "response.error") {
-        response.write(
-          `data: ${JSON.stringify({
-            type: "error",
-            message: event.error?.message || "Streaming error"
-          })}\n\n`
-        );
+      if (
+        event.type === "response.error" ||
+        event.type === "response.failed" ||
+        event.type === "error"
+      ) {
+        const streamError = event.error || event.response?.error || new Error("Streaming error");
+        logChatError(streamError, { model, module: moduleDef.slug, phase: "stream_event" });
+        writeStreamError(response);
+        return;
       }
     }
 
     response.end();
   } catch (error) {
-    response.status(500).json({
-      error: error && error.message ? error.message : "Request failed"
-    });
+    logChatError(error, { model, module: moduleDef.slug, phase: "request_or_stream" });
+
+    if (response.headersSent) {
+      writeStreamError(response);
+      return;
+    }
+
+    response.status(500).json({ error: PUBLIC_CHAT_ERROR_MESSAGE });
   }
 }

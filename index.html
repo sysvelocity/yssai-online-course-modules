@@ -1934,6 +1934,15 @@
         const messageText =
           error && error.message ? error.message : "Request failed";
 
+        const incompleteAssistantReply = state.history[state.history.length - 1];
+        if (
+          incompleteAssistantReply &&
+          incompleteAssistantReply.role === "assistant" &&
+          !String(incompleteAssistantReply.content || "").trim()
+        ) {
+          state.history.pop();
+        }
+
         if (error && error.code === "invalid_module_token") {
           storeModuleAccessToken("");
           showLaunchRequiredOverlay();
@@ -2051,6 +2060,8 @@
           }
         }
       }
+
+      throw new Error("The AI response ended before it completed. Please try again.");
     }
 
     inputEl.addEventListener("keydown", (event) => {

@@ -22,7 +22,7 @@ This project is now structured as a shared multi-module app. Module 4 is the cur
 Set these in Vercel:
 
 - `OPENAI_API_KEY`
-- `OPENAI_MODEL`, optional, recommended `gpt-5.2`
+- `OPENAI_MODEL`, optional, defaults to `gpt-5.2`; `gpt-5.6-luna` is also supported with model-aware request settings
 - `MODULE_TOKEN_SECRET`, required, must exactly match the course website signing secret
 
 Knowledge/vector store configuration:

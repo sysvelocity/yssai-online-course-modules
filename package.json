@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "vercel dev",
     "start": "vercel dev",
+    "test": "node --test",
     "upload:knowledge": "node scripts/upload-knowledge.mjs"
   },
   "dependencies": {
